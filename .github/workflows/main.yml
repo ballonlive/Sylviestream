@@ -1,28 +1,50 @@
-name: YouTube Live Bot
-
+name: BALLONTV_PRO_ENGINE
 on:
   workflow_dispatch:
+    inputs:
+      source_url: { required: true }
+      user_agent: { default: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" }
+      logo_url: { required: false }
+      logo_size: { default: "150" }
+      logo_pos: { default: "w-tw-20:20" } # أعلى اليمين افتراضياً
+      fb_keys: { required: false } # روابط RTMP مفصولة بفاصلة
+      yt_key: { required: false }
+      kik_key: { required: false }
+      drm_keys: { required: false } # لإضافة مفاتيح ClearKey
 
 jobs:
   stream:
     runs-on: ubuntu-latest
     steps:
-      - name: Install Tools
+      - name: Install Professional Tools
         run: |
-          sudo apt update
-          sudo apt install -y ffmpeg
+          sudo apt update && sudo apt install -y ffmpeg
           sudo curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
           sudo chmod a+rx /usr/local/bin/yt-dlp
 
-      - name: Start Streaming
+      - name: Process & Global Stream
         run: |
-          # استبدل الرابط أدناه برابط فيديو اليوتيوب الذي تريد بثه
-          VIDEO_URL="https://live.kwikmotion.com/sharjahtvquranlive/shqurantv.smil/playlist.m3u8"
+          # 1. تحليل جلب الرابط (يدعم m3u8 و mpd)
+          SRC_URL=$(yt-dlp --user-agent "${{ github.event.inputs.user_agent }}" -g "${{ github.event.inputs.source_url }}" || echo "${{ github.event.inputs.source_url }}")
+
+          # 2. بناء فلاتر الشعار والمقاس
+          if [ "${{ github.event.inputs.logo_url }}" != "" ]; then
+             LOGO_SCRIPT="-i ${{ github.event.inputs.logo_url }} -filter_complex \"[1:v]scale=${{ github.event.inputs.logo_size }}:-1[logo];[0:v][logo]overlay=${{ github.event.inputs.logo_pos }}\""
+          else
+             LOGO_SCRIPT="-vf \"drawtext=text='BALLONTV':x=w-tw-20:y=20:fontsize=35:fontcolor=white:box=1:boxcolor=black@0.4\""
+          fi
+
+          # 3. إعداد تعدد الوجهات (Facebook, YouTube, Kik)
+          IFS=',' read -ra ADDR <<< "${{ github.event.inputs.fb_keys }}"
+          DESTS=""
+          for i in "${ADDR[@]}"; do DESTS="$DESTS|[f=flv]$i"; done
+          if [ "${{ github.event.inputs.yt_key }}" != "" ]; then DESTS="$DESTS|[f=flv]rtmp://a.rtmp.youtube.com/live2/${{ github.event.inputs.yt_key }}"; fi
+          if [ "${{ github.event.inputs.kik_key }}" != "" ]; then DESTS="$DESTS|[f=flv]rtmps://fa72391ed05b.global-contribute.live-video.net:443/app/${{ github.event.inputs.kik_key }}"; fi
           
-          # مفتاح البث الخاص بك
-          STREAM_KEY="2ka8-cxyu-pqym-xejh-fb18"
-          
-          yt-dlp -g -f "best[ext=mp4]" "$VIDEO_URL" | xargs -I {} ffmpeg -re -stream_loop -1 -i "{}" \
-          -c:v libx264 -preset veryfast -b:v 3000k -maxrate 3000k -bufsize 6000k \
+          FINAL_DESTS=$(echo $DESTS | sed 's/^|//')
+
+          # 4. الانطلاق بالبث (دعم User-Agent و Loop المستمر)
+          ffmpeg -user_agent "${{ github.event.inputs.user_agent }}" -re -stream_loop -1 -i "$SRC_URL" $LOGO_SCRIPT \
+          -c:v libx264 -preset veryfast -b:v 3500k -maxrate 4000k -bufsize 8000k \
           -pix_fmt yuv420p -g 50 -c:a aac -b:a 128k -ar 44100 \
-          -f flv "rtmp://a.rtmp.youtube.com/live2/$STREAM_KEY"
+          -f tee -map 0:v -map 0:a "$FINAL_DESTS"
