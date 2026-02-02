@@ -1,30 +1,37 @@
-name: YouTube 24/7 Stream
+name: BALLONTV_FINAL_VERSION
 
 on:
-  workflow_dispatch: # لتشغيل البث يدوياً بضغطة زر من هاتفك
+  workflow_dispatch: # تشغيل يدوي من Actions
 
 jobs:
-  stream:
+  # السيرفر الأول: بث قناة القرآن الكريم
+  Quran-Server:
     runs-on: ubuntu-latest
     steps:
-      - name: Install Tools
-        run: |
-          sudo apt update
-          sudo apt install -y ffmpeg
-          sudo curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
-          sudo chmod a+rx /usr/local/bin/yt-dlp
+      - name: Install FFmpeg
+        run: sudo apt update && sudo apt install -y ffmpeg
 
-      - name: Start Streaming to YouTube
+      - name: Start Quran Stream
         run: |
-          # 1. ضع رابط الفيديو الذي تريد بثه هنا (سواء من يوتيوب أو رابط مباشر)
-          VIDEO_SOURCE="https://live.kwikmotion.com/sharjahtvquranlive/shqurantv.smil/playlist.m3u8"
-          
-          # 2. مفتاح البث الخاص بك (تم إعداده ليوتيوب)
-          STREAM_KEY="2ka8-cxyu-pqym-xejh-fb18"
-          YOUTUBE_RTMP="rtmp://a.rtmp.youtube.com/live2/$STREAM_KEY"
+          ffmpeg -re -i "https://live.kwikmotion.com/sharjahtvquranlive/shqurantv.smil/playlist.m3u8" \
+          -vf "drawtext=text='BALLONTV':x=w-tw-20:y=20:fontsize=40:fontcolor=white:box=1:boxcolor=black@0.4" \
+          -c:v libx264 -preset veryfast -b:v 2500k -maxrate 3000k -bufsize 6000k \
+          -pix_fmt yuv420p -g 60 -c:a aac -b:a 128k -ar 44100 \
+          -f flv "rtmps://live-api-s.facebook.com:443/rtmp/FB-122122223739122511-1-Ab4ePstD_mf454jdzTLSJyNb"
 
-          # أمر البث مع خاصية التكرار (Loop) لضمان عدم توقفه
-          yt-dlp -g -f "best[ext=mp4]" "$VIDEO_SOURCE" | xargs -I {} ffmpeg -re -stream_loop -1 -i "{}" \
-          -c:v libx264 -preset veryfast -b:v 3000k -maxrate 3000k -bufsize 6000k \
-          -pix_fmt yuv420p -g 50 -c:a aac -b:a 128k -ar 44100 \
-          -f flv "$YOUTUBE_RTMP"
+  # السيرفر الثاني: بث قناة Alwan Sport
+  Sport-Server:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install FFmpeg
+        run: sudo apt update && sudo apt install -y ffmpeg
+
+      - name: Start Sport Stream
+        run: |
+          # استخدمنا محاكي متصفح لضمان عدم حجب رابط الرياضة
+          ffmpeg -user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
+          -re -i "http://135.125.109.73:9000/Alwan%20Sport%201%20FHD%20VIP%20Arb_.m3u8" \
+          -vf "drawtext=text='BALLONTV':x=w-tw-20:y=20:fontsize=40:fontcolor=white:box=1:boxcolor=black@0.4" \
+          -c:v libx264 -preset veryfast -b:v 3000k -maxrate 3500k -bufsize 7000k \
+          -pix_fmt yuv420p -g 60 -c:a aac -b:a 128k -ar 44100 \
+          -f flv "rtmps://live-api-s.facebook.com:443/rtmp/FB-122122223739122511-0-Ab5nPnGm7-AvjgZoRLxF_X1N"
