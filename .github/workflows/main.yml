@@ -1,0 +1,28 @@
+name: YouTube Live Bot
+
+on:
+  workflow_dispatch:
+
+jobs:
+  stream:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Tools
+        run: |
+          sudo apt update
+          sudo apt install -y ffmpeg
+          sudo curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
+          sudo chmod a+rx /usr/local/bin/yt-dlp
+
+      - name: Start Streaming
+        run: |
+          # استبدل الرابط أدناه برابط فيديو اليوتيوب الذي تريد بثه
+          VIDEO_URL="https://live.kwikmotion.com/sharjahtvquranlive/shqurantv.smil/playlist.m3u8"
+          
+          # مفتاح البث الخاص بك
+          STREAM_KEY="2ka8-cxyu-pqym-xejh-fb18"
+          
+          yt-dlp -g -f "best[ext=mp4]" "$VIDEO_URL" | xargs -I {} ffmpeg -re -stream_loop -1 -i "{}" \
+          -c:v libx264 -preset veryfast -b:v 3000k -maxrate 3000k -bufsize 6000k \
+          -pix_fmt yuv420p -g 50 -c:a aac -b:a 128k -ar 44100 \
+          -f flv "rtmp://a.rtmp.youtube.com/live2/$STREAM_KEY"
