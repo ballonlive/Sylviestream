@@ -1,35 +1,32 @@
-name: BALLONTV_FINAL_VERSION
+name: BALLONTV_STREAMS_FIXED
 
 on:
-  workflow_dispatch: # تشغيل يدوي من Actions
+  workflow_dispatch:
 
 jobs:
-  # السيرفر الأول: بث قناة القرآن الكريم
-  Quran-Server:
+  Quran-Stream:
     runs-on: ubuntu-latest
     steps:
       - name: Install FFmpeg
         run: sudo apt update && sudo apt install -y ffmpeg
-
-      - name: Start Quran Stream
+      - name: Live Quran
         run: |
-          ffmpeg -re -i "https://live.kwikmotion.com/sharjahtvquranlive/shqurantv.smil/playlist.m3u8" \
+          ffmpeg -reconnect 1 -reconnect_at_eof 1 -reconnect_streamed 1 -reconnect_delay_max 2 \
+          -re -i "https://live.kwikmotion.com/sharjahtvquranlive/shqurantv.smil/playlist.m3u8" \
           -vf "drawtext=text='BALLONTV':x=w-tw-20:y=20:fontsize=40:fontcolor=white:box=1:boxcolor=black@0.4" \
           -c:v libx264 -preset veryfast -b:v 2500k -maxrate 3000k -bufsize 6000k \
           -pix_fmt yuv420p -g 60 -c:a aac -b:a 128k -ar 44100 \
           -f flv "rtmps://live-api-s.facebook.com:443/rtmp/FB-122122223739122511-1-Ab4ePstD_mf454jdzTLSJyNb"
 
-  # السيرفر الثاني: بث قناة Alwan Sport
-  Sport-Server:
+  Sport-Stream:
     runs-on: ubuntu-latest
     steps:
       - name: Install FFmpeg
         run: sudo apt update && sudo apt install -y ffmpeg
-
-      - name: Start Sport Stream
+      - name: Live Sport
         run: |
-          # استخدمنا محاكي متصفح لضمان عدم حجب رابط الرياضة
-          ffmpeg -user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
+          ffmpeg -reconnect 1 -reconnect_at_eof 1 -reconnect_streamed 1 -reconnect_delay_max 2 \
+          -user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" \
           -re -i "http://135.125.109.73:9000/Alwan%20Sport%201%20FHD%20VIP%20Arb_.m3u8" \
           -vf "drawtext=text='BALLONTV':x=w-tw-20:y=20:fontsize=40:fontcolor=white:box=1:boxcolor=black@0.4" \
           -c:v libx264 -preset veryfast -b:v 3000k -maxrate 3500k -bufsize 7000k \
